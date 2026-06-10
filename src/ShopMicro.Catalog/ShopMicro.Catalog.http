@@ -1,0 +1,6 @@
+@ShopMicro.Catalog_HostAddress = http://localhost:5299
+
+GET {{ShopMicro.Catalog_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

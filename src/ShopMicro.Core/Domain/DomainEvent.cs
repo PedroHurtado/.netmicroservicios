@@ -1,4 +1,4 @@
-namespace Domain.Core;
+namespace ShopMicro.Domain;
 
 /// <summary>
 /// Estado de publicación de un evento de dominio.
@@ -10,12 +10,16 @@ public enum DomainEventStatus
 }
 
 /// <summary>
-/// Evento de dominio. Es a su vez una entidad (tiene identidad propia).
+/// Evento de dominio. Es a su vez una entidad (tiene identidad propia), por eso
+/// extiende <see cref="EntityBase{TId}"/>. El tipo del identificador es genérico:
+/// al persistirse en un outbox, cada microservicio elige el tipo de id que necesite
+/// (no se asume <see cref="Guid"/>).
 /// El payload puede ser un record, una clase o el propio agregado (this).
-/// El constructor y los atributos son protected; los datos solo se exponen
-/// vía getter para garantizar la inmutabilidad.
+/// El constructor y los atributos son protected; los datos solo se exponen vía
+/// getter para garantizar la inmutabilidad.
 /// </summary>
-public class DomainEvent : EntityBase
+/// <typeparam name="TId">tipo del identificador del evento (lo elige el outbox)</typeparam>
+public class DomainEvent<TId> : EntityBase<TId>
 {
     public string EventType { get; }
 
@@ -32,7 +36,7 @@ public class DomainEvent : EntityBase
     public object Payload { get; }
 
     protected DomainEvent(
-        Guid id,
+        TId id,
         string eventType,
         string aggregate,
         Guid idAggregate,
@@ -50,8 +54,8 @@ public class DomainEvent : EntityBase
         Payload = payload;
     }
 
-    public static DomainEvent Create(
-        Guid id,
+    public static DomainEvent<TId> Create(
+        TId id,
         string eventType,
         string aggregate,
         Guid idAggregate,
