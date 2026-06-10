@@ -24,8 +24,7 @@ public class IngredienteCreate : IFeatureModule
         {
             var response = await sender.Send(command);
             return Results.Created($"/ingredients/{response.Id}", response);
-        })
-        .WithName("CreateIngredient");
+        });        
     }
 
     /// <summary>
