@@ -3,9 +3,9 @@ namespace ShopMicro.Infrastructure;
 using ShopMicro.Domain;
 
 /// <summary>
-/// Implementa <see cref="IRemove{T, TId}.RemoveAsync"/> como método por defecto.
-/// Extiende <see cref="IGetEf{T, TId, TEf}"/> para garantizar la existencia (y lanzar
-/// <see cref="EntityNotFoundException"/> si no) antes del borrado.
+/// Implementa <see cref="IRemove{T, TId}.RemoveAsync"/> como método por defecto. Borrar no
+/// necesita el objeto de dominio (ni mapear nada): localiza la fila EF por id con
+/// <b>una sola lectura</b>, lanza <see cref="EntityNotFoundException"/> si no existe y la elimina.
 /// </summary>
 /// <typeparam name="T">tipo de dominio</typeparam>
 /// <typeparam name="TId">tipo del identificador</typeparam>
@@ -16,9 +16,14 @@ public interface IRemoveEf<T, TId, TEf> : IGetEf<T, TId, TEf>, IRemove<T, TId>
 {
     async Task IRemove<T, TId>.RemoveAsync(TId id)
     {
-        await GetAsync(id);                  // lanza EntityNotFoundException si no existe
+        // FindAsync (con tracking) localiza la fila a eliminar: única lectura del borrado.
         var ef = await Set().FindAsync(id);
-        Set().Remove(ef!);
+        if (ef is null)
+        {
+            throw new EntityNotFoundException(DomainType(), id!);
+        }
+
+        Set().Remove(ef);
         await Db().SaveChangesAsync();
     }
 }

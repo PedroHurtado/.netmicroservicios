@@ -8,9 +8,9 @@ using ShopMicro.Infrastructure;
 /// <summary>
 /// Repositorio de Ingredient. Compone las vistas + las interfaces <c>*Ef</c> del núcleo
 /// y solo cablea los tres puntos variables (<c>Db()</c>, <c>Set()</c>, <c>Mapper()</c>).
-/// add/get/update/remove provienen de los default interface methods del núcleo: al ser
-/// Ingredient un agregado plano (sin navegaciones), <c>GetAsync</c> por id basta y no se
-/// sobrescribe (a diferencia de Pizza, que necesita <c>Include</c>).
+/// add/get/update/remove provienen de los default interface methods del núcleo y no se
+/// sobrescriben: la lectura es sin tracking y las escrituras operan sobre una entidad EF
+/// nueva, así que la composición basta sin código a medida.
 /// </summary>
 public sealed class IngredientRepository(CatalogDbContext db, IngredientMapper mapper) :
     IAddIngredient,

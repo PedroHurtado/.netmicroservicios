@@ -2,7 +2,9 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopMicro.Catalog.Features.IngredientsAgregate.Commands;
 using ShopMicro.Catalog.Features.IngredientsAgregate.Persistence;
+using ShopMicro.Catalog.Features.PizzasAgregate.Persistence;
 using ShopMicro.Catalog.Persistence;
+using ShopMicro.Infrastructure;
 using ShopMicro.WebApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +27,18 @@ builder.Services.AddScoped<IAddIngredient>(sp => sp.GetRequiredService<Ingredien
 builder.Services.AddScoped<IGetIngredient>(sp => sp.GetRequiredService<IngredientRepository>());
 builder.Services.AddScoped<IUpdateIngredient>(sp => sp.GetRequiredService<IngredientRepository>());
 builder.Services.AddScoped<IRemoveIngredient>(sp => sp.GetRequiredService<IngredientRepository>());
+
+// Lookup / LookupResolver (OCP): cada agregado destino de FK registra su ILookup vía la
+// marcadora ILookupMarker. El resolver los recibe TODOS con una sola consulta al contenedor;
+// añadir un destino nuevo es una línea de registro más, sin tocar el resolver.
+builder.Services.AddScoped<ILookupMarker, IngredientLookup>();
+builder.Services.AddScoped<LookupResolver>(sp =>
+    new LookupResolver(sp.GetServices<ILookupMarker>()));
+
+// Mapper y repositorio de Pizza, expuesto por su vista (ISP).
+builder.Services.AddScoped<PizzaMapper>();
+builder.Services.AddScoped<PizzaRepository>();
+builder.Services.AddScoped<IAddPizza>(sp => sp.GetRequiredService<PizzaRepository>());
 
 var app = builder.Build();
 
