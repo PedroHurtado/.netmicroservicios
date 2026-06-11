@@ -21,6 +21,13 @@ public interface IUpdateEf<T, TId, TEf> : IGetEf<T, TId, TEf>, IUpdate<T, TId>
     {
         // La lectura ya la hizo el handler; aquí solo se persiste sobre una entidad EF nueva.
         Set().Update(Mapper().ToEf(entity));
+        // Mismo puente que en AddAsync: el agregado de dominio no lo trackea EF, así que le
+        // pasamos sus eventos a la unidad de trabajo para despacharlos antes del commit.
+        if (entity is IHasDomainEvents aggregate && Db() is IDomainEventCollector collector)
+        {
+            collector.Collect(aggregate);
+        }
+
         await Db().SaveChangesAsync();
     }
 }

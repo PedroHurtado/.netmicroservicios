@@ -1,24 +1,30 @@
 namespace ShopMicro.Domain;
 
 /// <summary>
-/// Raíz de agregado. No es más que una <see cref="EntityBase{TId}"/> que, además,
-/// acumula los eventos de dominio generados por el agregado. La colección se expone
-/// como solo lectura para garantizar su inmutabilidad desde el exterior.
+/// Raíz de agregado. Es una <see cref="EntityBase{TId}"/> que, además, <b>acumula</b> los
+/// eventos de dominio que el agregado va generando. La colección se expone como solo lectura:
+/// nadie de fuera la manipula directamente.
+/// <para>
+/// A diferencia del outbox, el agregado emite un <see cref="DomainEventData"/> ligero: solo
+/// lo que conoce de verdad (tipo de evento, nombre e id del agregado, payload). Por eso esta
+/// clase tiene <b>un único</b> parámetro de tipo: el id del evento del outbox no es asunto del
+/// dominio, lo decide la infraestructura al persistir.
+/// </para>
 /// </summary>
 /// <typeparam name="TId">tipo del identificador del agregado</typeparam>
-/// <typeparam name="TEventId">
-/// tipo del identificador de los eventos de dominio acumulados. Es independiente del
-/// id del agregado: el outbox decide con qué tipo de id persiste cada evento.
-/// </typeparam>
-public abstract class AggregateRoot<TId, TEventId>(TId id) : EntityBase<TId>(id)
+public abstract class AggregateRoot<TId>(TId id) : EntityBase<TId>(id), IHasDomainEvents
 {
-    private readonly List<DomainEvent<TEventId>> _domainEvents = [];
+    private readonly List<DomainEventData> _domainEvents = [];
 
-    public IReadOnlyList<DomainEvent<TEventId>> DomainEvents => _domainEvents.AsReadOnly();
+    public IReadOnlyList<DomainEventData> DomainEvents => _domainEvents.AsReadOnly();
 
-    protected void Add(DomainEvent<TEventId> domainEvent) => _domainEvents.Add(domainEvent);
-
-    protected void Remove(DomainEvent<TEventId> domainEvent) => _domainEvents.Remove(domainEvent);
+    /// <summary>
+    /// Registra un evento de dominio. El agregado solo aporta el tipo de evento y el payload;
+    /// el nombre del agregado y su identidad se derivan aquí. Los campos de infraestructura
+    /// (usuario, timestamp, id del evento) los pone el handler, no el dominio.
+    /// </summary>
+    protected void AddEvent(string eventType, object payload)
+        => _domainEvents.Add(new DomainEventData(eventType, GetType().Name, (Guid)(object)Id!, payload));
 
     public void Clear() => _domainEvents.Clear();
 }

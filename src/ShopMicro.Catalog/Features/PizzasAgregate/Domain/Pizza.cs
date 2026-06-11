@@ -4,12 +4,13 @@ using ShopMicro.Catalog.Features.IngredientsAgregate.Domain;
 using ShopMicro.Domain;
 
 /// <summary>
-/// Pizza del catálogo. Referencia a un conjunto de <see cref="Ingredient"/> ya resueltos
-/// (entidades de dominio reales, no ids). Constructor y atributos protected; la fábrica
-/// <see cref="Create"/> es el único punto de creación. La colección de ingredientes se
-/// expone como solo lectura para garantizar su inmutabilidad desde el exterior.
+/// Pizza del catálogo. Raíz de agregado: referencia a un conjunto de <see cref="Ingredient"/>
+/// ya resueltos (entidades de dominio reales, no ids) y <b>acumula eventos de dominio</b>.
+/// Constructor y atributos protected; la fábrica <see cref="Create"/> es el único punto de
+/// creación. La colección de ingredientes se expone como solo lectura para garantizar su
+/// inmutabilidad desde el exterior.
 /// </summary>
-public class Pizza : EntityBase<Guid>
+public class Pizza : AggregateRoot<Guid>
 {
     private readonly HashSet<Ingredient> _ingredients;
 
@@ -31,5 +32,10 @@ public class Pizza : EntityBase<Guid>
     }
 
     public static Pizza Create(string name, string description, string url, ISet<Ingredient> ingredients)
-        => new(Guid.NewGuid(), name, description, url, ingredients);
+    {
+        var pizza = new Pizza(Guid.NewGuid(), name, description, url, ingredients);
+        // El agregado declara el hecho; no sabe quién reaccionará ni cómo se persiste.
+        pizza.AddEvent("pizza:create", pizza);
+        return pizza;
+    }
 }

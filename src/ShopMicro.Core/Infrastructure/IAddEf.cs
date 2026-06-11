@@ -17,6 +17,13 @@ public interface IAddEf<T, TId, TEf> : IRepositoryEf<T, TId, TEf>, IAdd<T>
     async Task IAdd<T>.AddAsync(T entity)
     {
         await Set().AddAsync(Mapper().ToEf(entity));
+        // El dominio no entra en el ChangeTracker (solo su *Ef): entregamos aquí sus eventos a
+        // la unidad de trabajo para que SaveChanges los despache antes del commit.
+        if (entity is IHasDomainEvents aggregate && Db() is IDomainEventCollector collector)
+        {
+            collector.Collect(aggregate);
+        }
+
         await Db().SaveChangesAsync();
     }
 }

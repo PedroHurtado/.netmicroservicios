@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ShopMicro.Catalog.Features.IngredientsAgregate.Commands;
 using ShopMicro.Catalog.Features.IngredientsAgregate.Persistence;
 using ShopMicro.Catalog.Features.PizzasAgregate.Persistence;
+using ShopMicro.Catalog.Outbox;
 using ShopMicro.Catalog.Persistence;
 using ShopMicro.Infrastructure;
 using ShopMicro.WebApi;
@@ -39,6 +40,11 @@ builder.Services.AddScoped<LookupResolver>(sp =>
 builder.Services.AddScoped<PizzaMapper>();
 builder.Services.AddScoped<PizzaRepository>();
 builder.Services.AddScoped<IAddPizza>(sp => sp.GetRequiredService<PizzaRepository>());
+
+// Infraestructura de eventos de dominio (Camino 1: Outbox → broker).
+// El handler que escribe en el Outbox lo descubre el AddMediatR de arriba (mismo ensamblado).
+builder.Services.AddSingleton<IEventBus, LoggingEventBus>();   // stub; RabbitMQ en Módulo 6
+builder.Services.AddHostedService<MessageRelay>();             // drena el Outbox en segundo plano
 
 var app = builder.Build();
 
