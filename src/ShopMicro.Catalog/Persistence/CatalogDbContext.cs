@@ -85,6 +85,13 @@ public class CatalogDbContext(DbContextOptions<CatalogDbContext> options, IPubli
             // La fila del Outbox. (El nombre de tabla "Outbox" se fija con ToTable cuando haya
             // provider relacional; con InMemory no aplica.)
             entity.HasKey(domainEvent => domainEvent.Id);
+            // Las propiedades solo-getter (sin setter) no las mapea EF por convención: hay que
+            // declararlas para que pueda enlazar el constructor inmutable de DomainEvent.
+            entity.Property(domainEvent => domainEvent.EventType);
+            entity.Property(domainEvent => domainEvent.Aggregate);
+            entity.Property(domainEvent => domainEvent.IdAggregate);
+            entity.Property(domainEvent => domainEvent.User);
+            entity.Property(domainEvent => domainEvent.TimeStamp);
             // El payload es object: lo serializamos a JSON usando su tipo en tiempo de ejecución
             // (si no, se serializaría como object → "{}"). Al releer queda como JSON crudo;
             // el mapeo fino a jsonb se detalla en el Módulo 6 (EF Core + PostgreSQL).
