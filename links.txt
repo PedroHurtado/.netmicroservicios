@@ -5,5 +5,7 @@ https://microservices.io/patterns/data/cqrs.html
 https://microservices.io/patterns/data/transactional-outbox.html
 https://deviq.com/domain-driven-design/
 https://www.asyncapi.com/en
+https://microservices.io/patterns/data/saga.html
+https://github.com/PedroHurtado/springbootay
 
 Buscar Inbox Patern(Indempotencia)
