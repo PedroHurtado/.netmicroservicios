@@ -1,2 +1,9 @@
 https://luckypennysoftware.com/
 https://mapperly.riok.app/docs/intro/
+https://ardalis.github.io/CleanArchitecture/minimal-clean-architecture/
+https://microservices.io/patterns/data/cqrs.html
+https://microservices.io/patterns/data/transactional-outbox.html
+https://deviq.com/domain-driven-design/
+https://www.asyncapi.com/en
+
+Buscar Inbox Patern(Indempotencia)
