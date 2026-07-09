@@ -8,4 +8,7 @@ https://www.asyncapi.com/en
 https://microservices.io/patterns/data/saga.html
 https://github.com/PedroHurtado/springbootay
 
+Cors
+https://developer.mozilla.org/es/docs/Glossary/Preflight_request
+
 Buscar Inbox Patern(Indempotencia)
