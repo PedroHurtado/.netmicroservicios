@@ -11,4 +11,8 @@ https://github.com/PedroHurtado/springbootay
 Cors
 https://developer.mozilla.org/es/docs/Glossary/Preflight_request
 
+Csp
+
+https://www.w3.org/TR/CSP3/
+
 Buscar Inbox Patern(Indempotencia)
