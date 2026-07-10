@@ -1,0 +1,155 @@
+using Fudie.Core.Dispatch;
+using Microsoft.Extensions.DependencyInjection;
+using Fudie.Core.Dispatch.Stages;
+using Microsoft.Extensions.Logging;
+using ShopMicro.Catalog.Application;
+
+// ═══ Slices del microservicio (convención nested classes, sin cambios) ═══
+
+public static class CreateProduct
+{
+    public sealed record Command(string Name, decimal Price) : ICommand<Command, Guid>;
+    // Sin override → default del marcador DEL SERVICIO: Log → Val → Tx
+
+    public sealed class Validator : IMessageValidator<Command>
+    {
+        public ValueTask<IReadOnlyList<ValidationError>> ValidateAsync(Command message, CancellationToken ct)
+        {
+            List<ValidationError> errors = [];
+            if (string.IsNullOrWhiteSpace(message.Name)) errors.Add(new("Name", "obligatorio"));
+            if (message.Price <= 0) errors.Add(new("Price", "debe ser > 0"));
+            return ValueTask.FromResult<IReadOnlyList<ValidationError>>(errors);
+        }
+    }
+
+    public sealed class Handler : IHandler<Command, Guid>
+    {
+        public Task<Guid> Handle(Command message, CancellationToken ct)
+        {
+            Console.WriteLine($"      [Handler] Creando '{message.Name}' a {message.Price}€");
+            return Task.FromResult(Guid.NewGuid());
+        }
+    }
+}
+
+public static class GetProductById
+{
+    public sealed record Query(Guid Id) : IQuery<Query, string>;
+
+    public sealed class Handler : IHandler<Query, string>
+    {
+        public Task<string> Handle(Query message, CancellationToken ct)
+        {
+            Console.WriteLine($"      [Handler] Leyendo {message.Id}");
+            return Task.FromResult("Mesa de roble");
+        }
+    }
+}
+
+public static class ImportCatalog
+{
+    public sealed record Command(int Items) : ICommand<Command, int>
+    {
+        // Override del tipo: CINCO etapas, dos de ellas propias del servicio.
+        public static Pipeline<Command, int> Pipeline =>
+            Pipelines.For<Command, int>()
+                .Use<LoggingStage<Command, int>>()
+                .Use<AuditStage<Command, int>>()                    // 4ª: propia, Use<T>()
+                .Use(static sp => new ValidationStage<Command, int>(
+                    sp.GetServices<IMessageValidator<Command>>()))
+                .Use(static _ => new RetryStage<Command, int>(3))   // 5ª: propia, parametrizada
+                .Use<TransactionStage<Command, int>>();
+    }
+
+    public sealed class Handler : IHandler<Command, int>
+    {
+        private static int _calls;
+        public Task<int> Handle(Command message, CancellationToken ct)
+        {
+            if (++_calls < 3) throw new TimeoutException("fallo simulado");
+            Console.WriteLine($"      [Handler] Importando {message.Items} items (al 3er intento)");
+            return Task.FromResult(message.Items);
+        }
+    }
+}
+
+// ═══ GARANTÍAS NEGATIVAS (descomentar = no compila) ═══
+
+// 1) Query con transacción: Query no implementa ITransactional → CS0311
+// public static class Broken
+// {
+//     public sealed record Query(Guid Id) : IQuery<Query, string>
+//     {
+//         public static Pipeline<Query, string> Pipeline =>
+//             Pipelines.For<Query, string>()
+//                 .Use<TransactionStage<Query, string>>();          // ← NO COMPILA
+//     }
+// }
+
+// 2) Mensaje sin marcador (ni ICommand ni IQuery ni IDispatchable):
+//        sender.Send(new object());                               // ← NO COMPILA
+
+// ═══ Infraestructura fake del test ═══
+
+internal sealed class ConsoleLoggerFactory : ILoggerFactory
+{
+    public ILogger CreateLogger(string categoryName) => new ConsoleLogger();
+    private sealed class ConsoleLogger : ILogger
+    {
+        public void Log(string level, string message) => Console.WriteLine($"  [{level}] {message}");
+    }
+}
+
+internal sealed class FakeTransactionManager : ITransactionManager
+{
+    public async Task<TResult> ExecuteAsync<TResult>(Func<CancellationToken, Task<TResult>> operation, CancellationToken ct)
+    {
+        Console.WriteLine("    [TX] BEGIN");
+        try { var r = await operation(ct); Console.WriteLine("    [TX] COMMIT"); return r; }
+        catch { Console.WriteLine("    [TX] ROLLBACK"); throw; }
+    }
+}
+
+internal sealed class TestServiceProvider : IServiceProvider
+{
+    private readonly Dictionary<Type, Func<object>> _services = new()
+    {
+        [typeof(ILoggerFactory)] = static () => new ConsoleLoggerFactory(),
+        [typeof(ITransactionManager)] = static () => new FakeTransactionManager(),
+        [typeof(IHandler<CreateProduct.Command, Guid>)] = static () => new CreateProduct.Handler(),
+        [typeof(IHandler<GetProductById.Query, string>)] = static () => new GetProductById.Handler(),
+        [typeof(IHandler<ImportCatalog.Command, int>)] = static () => new ImportCatalog.Handler(),
+        [typeof(IEnumerable<IMessageValidator<CreateProduct.Command>>)] =
+            static () => new IMessageValidator<CreateProduct.Command>[] { new CreateProduct.Validator() },
+    };
+
+    public object? GetService(Type serviceType) =>
+        _services.TryGetValue(serviceType, out var factory) ? factory() : null;
+}
+
+internal static class Program
+{
+    private static async Task Main()
+    {
+        ISender sender = new Sender(new TestServiceProvider());
+
+        Console.WriteLine("── 1. Comando con el default DEL SERVICIO (Log→Val→Tx) ──");
+        var id = await sender.Send(new CreateProduct.Command("Mesa de roble", 149.90m));
+        Console.WriteLine($"   => {id}\n");
+
+        Console.WriteLine("── 2. Comando inválido (Val corta antes de abrir Tx) ──");
+        try { await sender.Send(new CreateProduct.Command("", -5m)); }
+        catch (MessageValidationException ex)
+        {
+            foreach (var e in ex.Errors) Console.WriteLine($"   => {e.PropertyName}: {e.ErrorMessage}");
+        }
+        Console.WriteLine();
+
+        Console.WriteLine("── 3. Query (solo Logging; Tx imposible por construcción) ──");
+        Console.WriteLine($"   => {await sender.Send(new GetProductById.Query(Guid.NewGuid()))}\n");
+
+        Console.WriteLine("── 4. Override con 5 ETAPAS (2 propias: Audit y Retry) ──");
+        var count = await sender.Send(new ImportCatalog.Command(42)).WithTimeout(TimeSpan.FromSeconds(10));
+        Console.WriteLine($"   => {count}");
+    }
+}
