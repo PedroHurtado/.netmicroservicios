@@ -1,0 +1,23 @@
+services:
+  # ─── Gateway (YARP): única puerta de entrada ───────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: ShopMicro.Gateway/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production   # usa catalog-api:8080 (appsettings.json)
+    depends_on:
+      - catalog-api
+    ports:
+      - "8080:8080"   # el cliente solo habla con el Gateway
+
+  # ─── Catalog.API: servicio interno, NO publicado al host ───
+  #     Solo alcanzable por su nombre en la red de compose.
+  catalog-api:
+    build:
+      context: .
+      dockerfile: ShopMicro.Catalog/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development   # habilita OpenAPI; DB InMemory
+    expose:
+      - "8080"
